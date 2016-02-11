@@ -24,9 +24,10 @@ double quaternionToYaw(geometry_msgs::Quaternion quat) {
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "indoor_nav_node");
 	ros::NodeHandle n("~");
-	ros::Publisher pub_errors = n.advertise<indoor_nav::Errors>("/errors", 10);
+	ros::Publisher pub_errors = n.advertise<indoor_nav::Errors>("/errors", 1);
 	tf2_ros::Buffer tfBuffer;
   	tf2_ros::TransformListener tfListener(tfBuffer);
+	ros::Rate loop_rate(20);
 
 	double x_goal = 0, y_goal = 0, theta_goal = 0;
 	indoor_nav::Errors errors_msg;
@@ -56,10 +57,13 @@ int main(int argc, char **argv) {
 				theta_goal = atan2(y_goal - translation.y, x_goal - translation.x);
 				errors_msg.angle_error = theta_goal - quaternionToYaw(quat);
 
-				if(distance_error < 0.1) {
+				if(errors_msg.angle_error > M_PI) errors_msg.angle_error = errors_msg.angle_error - (2 * M_PI);
+				if(errors_msg.angle_error < -M_PI) errors_msg.angle_error = errors_msg.angle_error + (2 * M_PI);
+
+				if(errors_msg.distance_error < 0.2) {
 					errors_msg.angle_error = 0;
 					errors_msg.distance_error = 0;
-					state == NO_MISSION;
+					state = NO_MISSION;
 				}
 		}
 
@@ -70,6 +74,8 @@ int main(int argc, char **argv) {
 			std::cin >> x_goal >> y_goal;
 			state = MISSION;
 		}
+	
+	loop_rate.sleep();
 	}
 
 	ros::shutdown();
